@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVBC Staff Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg-base: #0D1117;
+    --bg-surface: #161C26;
+    --bg-raised: #1E2733;
+    --accent-teal: #2AB8A6;
+    --accent-amber: #E8B84B;
+    --accent-red: #E05252;
+    --header-bg: #3E4E6C;
+    --text-primary: #F2EDE4;
+    --text-secondary: #8E92B0;
+    --text-muted: #5C607E;
+    --nav-highlight: #0A3D3A;
+    --border: #1E2733;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* NAV */
+  #nav {
+    width: 220px;
+    min-height: 100vh;
+    background: #0A0F15;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 100;
+  }
+
+  .nav-logo {
+    padding: 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .nav-logo img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
+
+  .nav-logo-text {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .nav-logo-text span {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 400;
+    letter-spacing: 0.1em;
+  }
+
+  .nav-links {
+    flex: 1;
+    padding: 12px 0;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  .nav-link:hover { color: var(--text-primary); background: var(--bg-surface); }
+
+  .nav-link.active {
+    color: var(--accent-teal);
+    background: var(--nav-highlight);
+    border-left-color: var(--accent-teal);
+  }
+
+  .nav-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  .nav-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* MAIN */
+  #main {
+    margin-left: 220px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  #header {
+    height: 64px;
+    background: var(--header-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .header-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* SCREENS */
+  .screen { display: none; padding: 28px; }
+  .screen.active { display: block; }
+
+  /* STAT CARDS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .stat-value.teal { color: var(--accent-teal); }
+  .stat-value.amber { color: var(--accent-amber); }
+
+  /* CARDS */
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  /* SEARCH */
+  .search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  input, select, textarea {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent-teal);
+  }
+
+  input::placeholder { color: var(--text-muted); }
+
+  .search-input { flex: 1; }
+
+  /* BUTTONS */
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--accent-teal);
+    color: #0A0F15;
+  }
+  .btn-primary:hover { background: #35d4c0; }
+
+  .btn-secondary {
+    background: var(--bg-raised);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+
+  .btn-danger {
+    background: var(--accent-red);
+    color: white;
+  }
+  .btn-danger:hover { background: #f06060; }
+
+  .btn-amber {
+    background: var(--accent-amber);
+    color: #0A0F15;
+  }
+
+  .btn-sm { padding: 7px 14px; font-size: 13px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* MEMBER PROFILE */
+  .member-profile {
+    display: none;
+    background: var(--bg-raised);
+    border: 1px solid var(--accent-teal);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .member-profile.visible { display: block; }
+
+  .member-profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .member-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .tier-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .tier-free { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .tier-mug { background: rgba(42,184,166,0.15); color: var(--accent-teal); border: 1px solid var(--accent-teal); }
+  .tier-coffee { background: rgba(232,184,75,0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+  .tier-fullpour { background: rgba(191,95,255,0.15); color: #bf5fff; border: 1px solid #bf5fff; }
+
+  .member-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .member-stat {
+    background: var(--bg-surface);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .member-stat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent-teal);
+  }
+
+  .member-stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  /* TAP LIST */
+  .tap-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .tap-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+
+  .tap-item-info { flex: 1; }
+  .tap-item-name { font-weight: 600; font-size: 14px; }
+  .tap-item-style { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .new-release-badge {
+    background: rgba(232,184,75,0.15);
+    color: var(--accent-amber);
+    border: 1px solid var(--accent-amber);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-right: 10px;
+  }
+
+  .poured-badge {
+    background: rgba(42,184,166,0.1);
+    color: var(--accent-teal);
+    border-radius: 4px;
+    font-size: 11px;
+    padding: 3px 10px;
+  }
+
+  /* CHECKIN LOG */
+  .checkin-log { display: flex; flex-direction: column; gap: 8px; }
+
+  .checkin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-raised);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .checkin-member { font-weight: 600; font-size: 14px; }
+  .checkin-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .checkin-pts {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-teal);
+  }
+
+  /* CHECKED IN STATE */
+  .checkin-done {
+    display: none;
+    background: rgba(42,184,166,0.1);
+    border: 1px solid var(--accent-teal);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    color: var(--accent-teal);
+    font-weight: 600;
+    margin-top: 12px;
+  }
+  .checkin-done.visible { display: block; }
+
+  /* QR SCANNER */
+  #qr-preview-container {
+    display: none;
+    margin: 16px 0;
+  }
+
+  #qr-preview-container.visible { display: block; }
+
+  #qr-preview {
+    width: 100%;
+    max-width: 400px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid var(--accent-teal);
+  }
+
+  /* REWARDS FORM */
+  .rewards-form { display: flex; flex-direction: column; gap: 14px; }
+
+  .form-row { display: flex; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* REDEMPTION LOG */
+  .redemption-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-raised);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .rdm-name { font-weight: 600; font-size: 14px; }
+  .rdm-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .rdm-pts {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-amber);
+  }
+
+  .tier-pill {
+    display: inline-block;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    color: var(--text-muted);
+    margin-right: 8px;
+    text-transform: uppercase;
+  }
+
+  /* ADMIN EDIT */
+  .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .edit-form { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ALERT */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert.visible { display: block; }
+  .alert-success { background: rgba(42,184,166,0.15); border: 1px solid var(--accent-teal); color: var(--accent-teal); }
+  .alert-error { background: rgba(224,82,82,0.15); border: 1px solid var(--accent-red); color: var(--accent-red); }
+
+  /* TWO COL LAYOUT */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-base); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+
+  select option { background: var(--bg-raised); }
+
+  .welcome-banner {
+    background: linear-gradient(135deg, var(--nav-highlight), var(--bg-raised));
+    border: 1px solid var(--accent-teal);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .welcome-banner img { width: 52px; height: 52px; object-fit: contain; }
+
+  .welcome-text h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .welcome-text p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-logo">
+    <img src="https://i.imgur.com/placeholder.png" id="nav-logo-img" alt="LVBC">
+    <div class="nav-logo-text">
+      LVBC
+      <span>Staff Panel</span>
+    </div>
+  </div>
+  <div class="nav-links">
+    <div class="nav-link active" onclick="showScreen('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-link" onclick="showScreen('checkin')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/></svg>
+      Check-In
+    </div>
+    <div class="nav-link" onclick="showScreen('rewards')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+      Rewards
+    </div>
+    <div class="nav-link" onclick="showScreen('admin')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Admin
+    </div>
+  </div>
+  <div class="nav-footer">
+    <div id="nav-time"></div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <header id="header">
+    <div class="header-title" id="header-title">Dashboard</div>
+    <div class="header-right" id="header-date"></div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <div class="screen active" id="screen-dashboard">
+    <div class="welcome-banner">
+      <img id="dash-logo" src="" alt="LVBC Logo">
+      <div class="welcome-text">
+        <h2>Lago Vista Brewing Company</h2>
+        <p>Staff operations panel — check-ins, rewards, and member management</p>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Today's Check-ins</div>
+        <div class="stat-value teal" id="stat-checkins">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Points Awarded Today</div>
+        <div class="stat-value amber" id="stat-points">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Free Pours Today</div>
+        <div class="stat-value" id="stat-pours">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Members</div>
+        <div class="stat-value" id="stat-members">—</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Recent Check-ins</div>
+        <div class="checkin-log" id="dash-checkin-log">
+          <div class="empty">Loading...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Recent Redemptions</div>
+        <div id="dash-redemption-log">
+          <div class="empty">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECK-IN -->
+  <div class="screen" id="screen-checkin">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-title">Find Member</div>
+          <div class="search-bar">
+            <input type="text" class="search-input" id="checkin-search" placeholder="Search by name or email..." oninput="searchMembers('checkin-search', 'checkin-results')">
+            <button class="btn btn-secondary" onclick="toggleQR()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3v3"/><path d="M18 21h3"/><path d="M14 14h3v3"/></svg>
+              Scan QR
+            </button>
+          </div>
+          <div id="qr-preview-container">
+            <video id="qr-preview"></video>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:8px">Point camera at member's QR code</p>
+          </div>
+          <div id="checkin-results"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="member-profile" id="checkin-profile">
+          <div class="member-profile-header">
+            <div>
+              <div class="member-name" id="cp-name">—</div>
+              <div class="tier-badge" id="cp-tier">—</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="clearCheckinMember()">Clear</button>
+          </div>
+          <div class="member-stats">
+            <div class="member-stat">
+              <div class="member-stat-val" id="cp-balance">0</div>
+              <div class="member-stat-label">Points Balance</div>
+            </div>
+            <div class="member-stat">
+              <div class="member-stat-val" id="cp-lifetime">0</div>
+              <div class="member-stat-label">Lifetime Points</div>
+            </div>
+            <div class="member-stat">
+              <div class="member-stat-val" id="cp-pours">0</div>
+              <div class="member-stat-label">Total Free Pours</div>
+            </div>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Member since: <span id="cp-since">—</span></p>
+
+          <div class="divider"></div>
+          <div class="card-title" style="margin-bottom:12px">New Release Beers</div>
+          <div class="tap-list" id="cp-tap-list"></div>
+
+          <div class="checkin-done" id="checkin-done-msg">
+            ✓ Checked in this visit
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:16px" id="checkin-actions">
+            <button class="btn btn-primary" onclick="logCheckin(false)">Log Check-In</button>
+          </div>
+        </div>
+
+        <div class="card" id="checkin-empty-state">
+          <div class="empty">Search for a member or scan their QR code to begin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REWARDS -->
+  <div class="screen" id="screen-rewards">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Process Redemption</div>
+        <div id="rewards-member-banner" style="margin-bottom:16px;display:none">
+          <div style="background:var(--bg-raised);border:1px solid var(--accent-teal);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600" id="rwd-member-name">—</div>
+              <div style="font-size:12px;color:var(--text-muted)">Balance: <span id="rwd-member-balance" style="color:var(--accent-teal)">0</span> pts · <span id="rwd-member-tier">—</span></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="clearRewardsMember()">Clear</button>
+          </div>
+        </div>
+
+        <div class="search-bar">
+          <input type="text" class="search-input" id="rewards-search" placeholder="Search member..." oninput="searchMembers('rewards-search', 'rewards-results')">
+        </div>
+        <div id="rewards-results" style="margin-bottom:16px"></div>
+
+        <div class="rewards-form" id="rewards-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Reward Tier</label>
+              <select id="rwd-tier" onchange="updateRewardOptions()">
+                <option value="">Select tier...</option>
+                <option value="1">Tier 1 — Treasure Box (100–200 pts)</option>
+                <option value="2">Tier 2 — Social Currency (250–500 pts)</option>
+                <option value="3">Tier 3 — Real Merch (750–1000 pts)</option>
+                <option value="4">Tier 4 — Insider Access (1500–2500 pts)</option>
+                <option value="5">Tier 5 — Legacy (5000+ pts)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reward</label>
+            <select id="rwd-name">
+              <option value="">Select tier first...</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Points to Deduct</label>
+              <input type="number" id="rwd-points" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Processed By</label>
+              <input type="text" id="rwd-staff" placeholder="Staff name">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes (optional)</label>
+            <input type="text" id="rwd-notes" placeholder="e.g. embroidered name, color choice...">
+          </div>
+          <div id="rwd-alert" class="alert"></div>
+          <button class="btn btn-primary" onclick="processRedemption()">Process Redemption</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Recent Redemptions</div>
+        <div id="rewards-log">
+          <div class="empty">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="screen" id="screen-admin">
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">Find Member to Edit</div>
+      <div class="search-bar">
+        <input type="text" class="search-input" id="admin-search" placeholder="Search by name or email..." oninput="searchMembers('admin-search', 'admin-results')">
+      </div>
+      <div id="admin-results"></div>
+    </div>
+
+    <div id="admin-edit-panel" style="display:none">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Edit Member Record</div>
+          <div id="admin-alert" class="alert"></div>
+          <div class="edit-form">
+            <input type="hidden" id="admin-member-id">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Name</label>
+                <input type="text" id="admin-name">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="admin-email">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="text" id="admin-phone">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Birthday</label>
+                <input type="date" id="admin-birthday">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Membership Tier</label>
+                <select id="admin-tier">
+                  <option value="Free">Free</option>
+                  <option value="Mug Club">Mug Club</option>
+                  <option value="Coffee Club">Coffee Club</option>
+                  <option value="Full Pour">Full Pour</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Active Status</label>
+                <select id="admin-active">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="card-title">Points Adjustment</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Current Balance</label>
+                <input type="number" id="admin-balance">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Lifetime Points</label>
+                <input type="number" id="admin-lifetime" disabled style="opacity:0.5">
+              </div>
+            </div>
+            <div class="form-row">
+              <button class="btn btn-primary" onclick="saveAdminEdit()">Save Changes</button>
+              <button class="btn btn-secondary" onclick="resetPin()">Reset PIN</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-title">Member Summary</div>
+            <div id="admin-summary" style="font-size:14px;line-height:2;color:var(--text-secondary)">—</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Redemption History</div>
+            <div id="admin-redemption-history">
+              <div class="empty">Select a member</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<script>
+const SUPABASE_URL = 'https://opsplpqvordihoktuqzp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wc3BscHF2b3JkaWhva3R1cXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTI0MjMsImV4cCI6MjA5MjM2ODQyM30.SIYWZXqM3o-6q1EdEBn-IpdG90JrLBZbbiNrjj6AG7Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// LOGO — base64 embed of the LVBC logo image
+const LOGO_URL = 'https://opsplpqvordihoktuqzp.supabase.co/storage/v1/object/public/assets/lvbc-logo.png';
+
+// State
+let activeMember = null;
+let checkinDone = false;
+let qrScanner = null;
+let qrActive = false;
+let beers = [];
+
+// ─── INIT ───────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  updateClock();
+  setInterval(updateClock, 1000);
+  loadDashboard();
+  loadBeers();
+
+  // Set logo images - use a data URI approach for the logo
+  const logoImg = new Image();
+  logoImg.crossOrigin = 'anonymous';
+});
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('nav-time').textContent = now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+  document.getElementById('header-date').textContent = now.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+}
+
+// ─── NAVIGATION ──────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  const titles = { dashboard:'Dashboard', checkin:'Member Check-In', rewards:'Rewards', admin:'Admin' };
+  document.getElementById('header-title').textContent = titles[name] || name;
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'rewards') { loadRewardsLog(); if (activeMember) populateRewardsMember(activeMember); }
+  if (name === 'admin') {}
+  if (qrActive && name !== 'checkin') stopQR();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────
+async function loadDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Stats
+  const { data: checkins } = await sb.from('check_ins').select('*').gte('checked_in_at', today + 'T00:00:00');
+  const { data: members } = await sb.from('members').select('id').eq('is_active', true);
+  const { data: pours } = await sb.from('free_pours').select('*').gte('poured_at', today + 'T00:00:00');
+
+  document.getElementById('stat-checkins').textContent = checkins?.length || 0;
+  document.getElementById('stat-members').textContent = members?.length || 0;
+  document.getElementById('stat-pours').textContent = pours?.length || 0;
+  const totalPts = checkins?.reduce((s, c) => s + (c.points_awarded || 0), 0) || 0;
+  document.getElementById('stat-points').textContent = totalPts;
+
+  // Recent check-ins with member names
+  const { data: recentCheckins } = await sb.from('check_ins')
+    .select('*, members(name, tier)')
+    .order('checked_in_at', { ascending: false })
+    .limit(8);
+
+  const logEl = document.getElementById('dash-checkin-log');
+  if (!recentCheckins?.length) { logEl.innerHTML = '<div class="empty">No check-ins today</div>'; return; }
+  logEl.innerHTML = recentCheckins.map(c => `
+    <div class="checkin-row">
+      <div>
+        <div class="checkin-member">${c.members?.name || 'Unknown'}</div>
+        <div class="checkin-meta">${c.members?.tier || ''} · ${formatTime(c.checked_in_at)}${c.free_pour_beer ? ' · 🍺 ' + c.free_pour_beer : ''}</div>
+      </div>
+      <div class="checkin-pts">+${c.points_awarded || 0}</div>
+    </div>`).join('');
+
+  // Recent redemptions
+  const { data: redemptions } = await sb.from('redemptions')
+    .select('*, members(name)')
+    .order('redeemed_at', { ascending: false })
+    .limit(6);
+
+  const rdmEl = document.getElementById('dash-redemption-log');
+  if (!redemptions?.length) { rdmEl.innerHTML = '<div class="empty">No recent redemptions</div>'; return; }
+  rdmEl.innerHTML = redemptions.map(r => `
+    <div class="redemption-row">
+      <div>
+        <div class="rdm-name">${r.members?.name || 'Unknown'}</div>
+        <div class="rdm-meta"><span class="tier-pill">T${r.tier}</span>${r.reward_name} · ${formatDate(r.redeemed_at)}</div>
+      </div>
+      <div class="rdm-pts">-${r.points_spent}</div>
+    </div>`).join('');
+}
+
+// ─── MEMBER SEARCH ───────────────────────────────────
+async function searchMembers(inputId, resultsId) {
+  const q = document.getElementById(inputId).value.trim();
+  const el = document.getElementById(resultsId);
+  if (q.length < 2) { el.innerHTML = ''; return; }
+
+  const { data } = await sb.from('members').select('*')
+    .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+    .eq('is_active', true).limit(5);
+
+  if (!data?.length) { el.innerHTML = '<div class="empty">No members found</div>'; return; }
+
+  const context = inputId.includes('checkin') ? 'checkin' : inputId.includes('rewards') ? 'rewards' : 'admin';
+  el.innerHTML = data.map(m => `
+    <div class="checkin-row" style="cursor:pointer;margin-bottom:6px" onclick="selectMember(${m.id}, '${context}')">
+      <div>
+        <div class="checkin-member">${m.name}</div>
+        <div class="checkin-meta">${m.email} · ${m.tier}</div>
+      </div>
+      <div style="font-size:13px;color:var(--accent-teal)">${m.points_balance} pts</div>
+    </div>`).join('');
+}
+
+async function selectMember(id, context) {
+  const { data: m } = await sb.from('members').select('*').eq('id', id).single();
+  if (!m) return;
+
+  if (context === 'checkin') {
+    activeMember = m;
+    checkinDone = false;
+    document.getElementById('checkin-results').innerHTML = '';
+    document.getElementById('checkin-search').value = '';
+    await populateCheckinProfile(m);
+  } else if (context === 'rewards') {
+    activeMember = m;
+    document.getElementById('rewards-results').innerHTML = '';
+    document.getElementById('rewards-search').value = '';
+    populateRewardsMember(m);
+  } else if (context === 'admin') {
+    document.getElementById('admin-results').innerHTML = '';
+    document.getElementById('admin-search').value = '';
+    populateAdminEdit(m);
+  }
+}
+
+// ─── CHECK-IN ────────────────────────────────────────
+async function loadBeers() {
+  const { data } = await sb.from('beers').select('*').eq('is_on_tap', true).eq('retired', false);
+  beers = data || [];
+}
+
+async function populateCheckinProfile(m) {
+  document.getElementById('checkin-empty-state').style.display = 'none';
+  document.getElementById('checkin-profile').classList.add('visible');
+  document.getElementById('cp-name').textContent = m.name;
+  document.getElementById('cp-balance').textContent = m.points_balance?.toLocaleString() || 0;
+  document.getElementById('cp-lifetime').textContent = m.points_earned_lifetime?.toLocaleString() || 0;
+  document.getElementById('cp-since').textContent = m.joined_at ? new Date(m.joined_at).toLocaleDateString('en-US', {month:'short', year:'numeric'}) : '—';
+
+  // Tier badge
+  const tierEl = document.getElementById('cp-tier');
+  tierEl.textContent = m.tier;
+  tierEl.className = 'tier-badge ' + tierClass(m.tier);
+
+  // Free pour count
+  const { count } = await sb.from('free_pours').select('*', { count:'exact', head:true }).eq('member_id', m.id);
+  document.getElementById('cp-pours').textContent = count || 0;
+
+  // Tap list with pour status
+  const newReleases = beers.filter(b => b.is_new_release);
+  const { data: poured } = await sb.from('free_pours').select('beer_id').eq('member_id', m.id);
+  const pouredIds = poured?.map(p => p.beer_id) || [];
+
+  const tapList = document.getElementById('cp-tap-list');
+  if (!newReleases.length) {
+    tapList.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">No new releases currently on tap</div>';
+  } else {
+    tapList.innerHTML = newReleases.map(b => {
+      const hasPoured = pouredIds.includes(b.id);
+      return `<div class="tap-item">
+        <div class="tap-item-info">
+          <div class="tap-item-name">${b.name}</div>
+          <div class="tap-item-style">${b.style}${b.abv ? ' · ' + b.abv + '% ABV' : ''}</div>
+        </div>
+        ${hasPoured
+          ? '<span class="poured-badge">✓ Already poured</span>'
+          : `<button class="btn btn-amber btn-sm" onclick="giveFreePoure(${b.id}, '${b.name}')">★ Free Pour</button>`
+        }
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('checkin-done-msg').classList.remove('visible');
+  document.getElementById('checkin-actions').style.display = 'flex';
+}
+
+async function logCheckin(isFreePoure, beerId, beerName) {
+  if (!activeMember || checkinDone) return;
+
+  const day = new Date().getDay();
+  const isWed = day === 3, isThu = day === 4;
+  const pts = isWed || isThu ? 25 : 15;
+
+  const { error } = await sb.from('check_ins').insert({
+    member_id: activeMember.id,
+    points_awarded: pts,
+    new_release_poured: isFreePoure || false,
+    free_pour_beer: beerName || null
+  });
+
+  if (error) { alert('Error logging check-in: ' + error.message); return; }
+
+  // Update member balance
+  await sb.from('members').update({
+    points_balance: (activeMember.points_balance || 0) + pts,
+    points_earned_lifetime: (activeMember.points_earned_lifetime || 0) + pts
+  }).eq('id', activeMember.id);
+
+  checkinDone = true;
+  document.getElementById('checkin-done-msg').classList.add('visible');
+  document.getElementById('checkin-actions').style.display = 'none';
+  document.getElementById('cp-balance').textContent = ((activeMember.points_balance || 0) + pts).toLocaleString();
+}
+
+async function giveFreePoure(beerId, beerName) {
+  if (!activeMember || checkinDone) return;
+
+  // Log free pour
+  await sb.from('free_pours').insert({ member_id: activeMember.id, beer_id: beerId });
+
+  // Log check-in with free pour
+  await logCheckin(true, beerId, beerName);
+
+  // Refresh tap list
+  await populateCheckinProfile(activeMember);
+}
+
+function clearCheckinMember() {
+  activeMember = null;
+  checkinDone = false;
+  document.getElementById('checkin-profile').classList.remove('visible');
+  document.getElementById('checkin-empty-state').style.display = 'block';
+  if (qrActive) stopQR();
+}
+
+// ─── QR SCANNER ──────────────────────────────────────
+async function toggleQR() {
+  if (qrActive) { stopQR(); return; }
+  document.getElementById('qr-preview-container').classList.add('visible');
+  const video = document.getElementById('qr-preview');
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+  qrScanner = new ZXing.BrowserQRCodeReader(hints);
+  qrActive = true;
+  try {
+    await qrScanner.decodeFromVideoDevice(null, 'qr-preview', async (result, err) => {
+      if (result) {
+        const token = result.getText();
+        stopQR();
+        await lookupByToken(token);
+      }
+    });
+  } catch(e) { console.error(e); }
+}
+
+function stopQR() {
+  if (qrScanner) { qrScanner.reset(); qrScanner = null; }
+  qrActive = false;
+  document.getElementById('qr-preview-container').classList.remove('visible');
+}
+
+async function lookupByToken(token) {
+  const { data } = await sb.from('qr_tokens').select('*, members(*)').eq('token', token).single();
+  if (data?.members) {
+    activeMember = data.members;
+    checkinDone = false;
+    await populateCheckinProfile(data.members);
+  } else {
+    alert('QR code not recognized');
+  }
+}
+
+// ─── REWARDS ─────────────────────────────────────────
+const REWARD_OPTIONS = {
+  1: [
+    {name:'Treasure box pick', pts:100},
+    {name:'Sticker pack', pts:100},
+    {name:'Snack item', pts:150},
+    {name:'Koozie', pts:150},
+    {name:'Partner discount coupon', pts:150},
+    {name:'Birthday bonus treasure box', pts:0}
+  ],
+  2: [
+    {name:'Pick a trivia category', pts:250},
+    {name:'Pick music bingo theme', pts:250},
+    {name:'Pick karaoke opener', pts:250},
+    {name:'Wall of Regulars — name for the month', pts:300},
+    {name:'LVBC pint glass', pts:400},
+    {name:'Free snack/food item up to $10', pts:400},
+    {name:'Early access to event RSVP', pts:350},
+    {name:'Choose next staff pick', pts:500}
+  ],
+  3: [
+    {name:'LVBC t-shirt', pts:750},
+    {name:'LVBC hat/cap', pts:750},
+    {name:'Growler (empty, branded)', pts:750},
+    {name:'LVBC hoodie', pts:1000},
+    {name:'LVBC U There — $10 off', pts:800},
+    {name:'LVBC U There — $20 off', pts:1000},
+    {name:'Reserve a specific table', pts:500}
+  ],
+  4: [
+    {name:'Private tasting for you + 3 friends', pts:1500},
+    {name:'Design input on future merch item', pts:1500},
+    {name:'VIP table at special event', pts:1500},
+    {name:'Custom LVBC item', pts:2000},
+    {name:'Host private event at taproom', pts:2500},
+    {name:'LVBC U There — comped ticket', pts:2000}
+  ],
+  5: [
+    {name:'Limestone wall inscription', pts:5000},
+    {name:'Brew day experience', pts:5000},
+    {name:'Founding Member badge & profile flair', pts:5000},
+    {name:'Anniversary party invite', pts:5000}
+  ]
+};
+
+function updateRewardOptions() {
+  const tier = parseInt(document.getElementById('rwd-tier').value);
+  const sel = document.getElementById('rwd-name');
+  const ptsInput = document.getElementById('rwd-points');
+  if (!tier) { sel.innerHTML = '<option value="">Select tier first...</option>'; return; }
+  const opts = REWARD_OPTIONS[tier] || [];
+  sel.innerHTML = opts.map(o => `<option value="${o.name}" data-pts="${o.pts}">${o.name} (${o.pts} pts)</option>`).join('');
+  sel.onchange = () => {
+    const opt = sel.options[sel.selectedIndex];
+    ptsInput.value = opt.dataset.pts || 0;
+  };
+  if (opts.length) { ptsInput.value = opts[0].pts; }
+}
+
+function populateRewardsMember(m) {
+  document.getElementById('rewards-member-banner').style.display = 'block';
+  document.getElementById('rwd-member-name').textContent = m.name;
+  document.getElementById('rwd-member-balance').textContent = m.points_balance?.toLocaleString() || 0;
+  document.getElementById('rwd-member-tier').textContent = m.tier;
+}
+
+function clearRewardsMember() {
+  activeMember = null;
+  document.getElementById('rewards-member-banner').style.display = 'none';
+}
+
+async function processRedemption() {
+  if (!activeMember) { showAlert('rwd-alert', 'error', 'No member selected'); return; }
+  const tier = parseInt(document.getElementById('rwd-tier').value);
+  const name = document.getElementById('rwd-name').value;
+  const pts = parseInt(document.getElementById('rwd-points').value) || 0;
+  const staff = document.getElementById('rwd-staff').value;
+  const notes = document.getElementById('rwd-notes').value;
+
+  if (!tier || !name) { showAlert('rwd-alert', 'error', 'Select a tier and reward'); return; }
+
+  const paidTiers = ['Mug Club', 'Coffee Club', 'Full Pour'];
+  if (tier >= 3 && !paidTiers.includes(activeMember.tier)) {
+    showAlert('rwd-alert', 'error', 'Tiers 3–5 require a paid membership'); return;
+  }
+
+  if (pts > 0 && activeMember.points_balance < pts) {
+    showAlert('rwd-alert', 'error', `Insufficient points. Balance: ${activeMember.points_balance}`); return;
+  }
+
+  const { error } = await sb.from('redemptions').insert({
+    member_id: activeMember.id,
+    tier, reward_name: name, points_spent: pts,
+    processed_by: staff, notes
+  });
+
+  if (error) { showAlert('rwd-alert', 'error', 'Error: ' + error.message); return; }
+
+  if (pts > 0) {
+    const newBal = activeMember.points_balance - pts;
+    await sb.from('members').update({ points_balance: newBal }).eq('id', activeMember.id);
+    activeMember.points_balance = newBal;
+    document.getElementById('rwd-member-balance').textContent = newBal.toLocaleString();
+  }
+
+  showAlert('rwd-alert', 'success', `✓ Redemption processed — ${name}`);
+  loadRewardsLog();
+}
+
+async function loadRewardsLog() {
+  const { data } = await sb.from('redemptions')
+    .select('*, members(name)')
+    .order('redeemed_at', { ascending: false })
+    .limit(10);
+
+  const el = document.getElementById('rewards-log');
+  if (!data?.length) { el.innerHTML = '<div class="empty">No redemptions yet</div>'; return; }
+  el.innerHTML = data.map(r => `
+    <div class="redemption-row">
+      <div>
+        <div class="rdm-name">${r.members?.name || 'Unknown'}</div>
+        <div class="rdm-meta"><span class="tier-pill">T${r.tier}</span>${r.reward_name}${r.notes ? ' · ' + r.notes : ''}</div>
+        <div class="rdm-meta" style="margin-top:2px">${formatDate(r.redeemed_at)}${r.processed_by ? ' · ' + r.processed_by : ''}</div>
+      </div>
+      <div class="rdm-pts">-${r.points_spent}</div>
+    </div>`).join('');
+}
+
+// ─── ADMIN ───────────────────────────────────────────
+async function populateAdminEdit(m) {
+  document.getElementById('admin-edit-panel').style.display = 'block';
+  document.getElementById('admin-member-id').value = m.id;
+  document.getElementById('admin-name').value = m.name || '';
+  document.getElementById('admin-email').value = m.email || '';
+  document.getElementById('admin-phone').value = m.phone || '';
+  document.getElementById('admin-birthday').value = m.birthday || '';
+  document.getElementById('admin-tier').value = m.tier || 'Free';
+  document.getElementById('admin-active').value = m.is_active ? 'true' : 'false';
+  document.getElementById('admin-balance').value = m.points_balance || 0;
+  document.getElementById('admin-lifetime').value = m.points_earned_lifetime || 0;
+
+  // Summary
+  const { count: checkinCount } = await sb.from('check_ins').select('*', {count:'exact',head:true}).eq('member_id', m.id);
+  const { count: pourCount } = await sb.from('free_pours').select('*', {count:'exact',head:true}).eq('member_id', m.id);
+  document.getElementById('admin-summary').innerHTML = `
+    <div>Member ID: <strong style="color:var(--text-primary)">${m.id}</strong></div>
+    <div>Joined: <strong style="color:var(--text-primary)">${m.joined_at ? new Date(m.joined_at).toLocaleDateString() : '—'}</strong></div>
+    <div>Total Check-ins: <strong style="color:var(--accent-teal)">${checkinCount || 0}</strong></div>
+    <div>Free Pours Received: <strong style="color:var(--accent-amber)">${pourCount || 0}</strong></div>
+    <div>Points Balance: <strong style="color:var(--accent-teal)">${m.points_balance?.toLocaleString() || 0}</strong></div>
+    <div>Lifetime Points: <strong style="color:var(--text-primary)">${m.points_earned_lifetime?.toLocaleString() || 0}</strong></div>
+  `;
+
+  // Redemption history
+  const { data: rdms } = await sb.from('redemptions').select('*').eq('member_id', m.id).order('redeemed_at', {ascending:false}).limit(20);
+  const rdmEl = document.getElementById('admin-redemption-history');
+  if (!rdms?.length) { rdmEl.innerHTML = '<div class="empty">No redemptions yet</div>'; return; }
+  rdmEl.innerHTML = rdms.map(r => `
+    <div class="redemption-row">
+      <div>
+        <div class="rdm-name" style="font-size:13px">${r.reward_name}</div>
+        <div class="rdm-meta"><span class="tier-pill">T${r.tier}</span>${formatDate(r.redeemed_at)}${r.notes ? ' · ' + r.notes : ''}</div>
+      </div>
+      <div class="rdm-pts" style="font-size:16px">-${r.points_spent}</div>
+    </div>`).join('');
+}
+
+async function saveAdminEdit() {
+  const id = document.getElementById('admin-member-id').value;
+  const updates = {
+    name: document.getElementById('admin-name').value,
+    email: document.getElementById('admin-email').value,
+    phone: document.getElementById('admin-phone').value,
+    birthday: document.getElementById('admin-birthday').value || null,
+    tier: document.getElementById('admin-tier').value,
+    is_active: document.getElementById('admin-active').value === 'true',
+    points_balance: parseInt(document.getElementById('admin-balance').value) || 0
+  };
+
+  const { error } = await sb.from('members').update(updates).eq('id', id);
+  if (error) { showAlert('admin-alert', 'error', 'Error: ' + error.message); return; }
+  showAlert('admin-alert', 'success', '✓ Member record updated successfully');
+}
+
+async function resetPin() {
+  const id = document.getElementById('admin-member-id').value;
+  const { error } = await sb.from('members').update({ pin: null }).eq('id', id);
+  if (error) { showAlert('admin-alert', 'error', 'Error: ' + error.message); return; }
+  showAlert('admin-alert', 'success', '✓ PIN cleared — member will be prompted to set a new one on next login');
+}
+
+// ─── HELPERS ─────────────────────────────────────────
+function tierClass(tier) {
+  const map = { 'Free':'tier-free', 'Mug Club':'tier-mug', 'Coffee Club':'tier-coffee', 'Full Pour':'tier-fullpour' };
+  return map[tier] || 'tier-free';
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+}
+
+function formatDate(ts) {
+  return new Date(ts).toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+}
+
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'alert visible alert-' + (type === 'success' ? 'success' : 'error');
+  setTimeout(() => el.classList.remove('visible'), 4000);
+}
+</script>
+</body>
+</html>
