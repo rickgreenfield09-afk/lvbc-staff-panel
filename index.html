@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVBC Staff Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+<style>
+  :root{--void:#0D1117;--surface:#161C26;--raised:#1E2733;--teal:#2AB8A6;--amber:#E8B84B;--red:#E05252;--purple:#BF5FFF;--header:#3E4E6C;--text:#F2EDE4;--sub:#8E92B0;--muted:#5C607E;--border:#2E3440;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--void);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+  header{background:var(--header);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .header-left{display:flex;align-items:center;gap:14px;}
+  .header-logo{width:36px;height:36px;object-fit:contain;}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--teal);}
+  .logo span{color:var(--text);opacity:0.5;font-size:13px;font-family:'DM Mono',monospace;letter-spacing:1px;margin-left:12px;vertical-align:middle;}
+  .staff-badge{background:var(--raised);border:1px solid var(--border);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--sub);font-family:'DM Mono',monospace;}
+
+  nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 24px;gap:4px;flex-shrink:0;}
+  .nav-btn{background:none;border:none;color:var(--sub);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;}
+  .nav-btn:hover{color:var(--text);}
+  .nav-btn.active{color:var(--teal);border-bottom-color:var(--teal);}
+
+  main{flex:1;padding:24px;overflow-y:auto;}
+  .screen{display:none;animation:fadeIn 0.2s ease;}
+  .screen.active{display:block;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+  .grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;}
+  .card-title{font-size:11px;font-family:'DM Mono',monospace;color:var(--sub);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+  .card-value{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--text);line-height:1;}
+  .card-value.teal{color:var(--teal);}
+  .card-value.amber{color:var(--amber);}
+  .card-sub{font-size:12px;color:var(--sub);margin-top:4px;}
+  .section-label{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;margin-top:24px;}
+
+  .checkin-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+  .checkin-row:last-child{border-bottom:none;}
+  .checkin-name{font-weight:500;font-size:14px;}
+  .checkin-time{font-size:12px;color:var(--sub);font-family:'DM Mono',monospace;margin-top:2px;}
+  .checkin-pour{font-size:12px;color:var(--amber);margin-top:3px;}
+  .checkin-pts{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--teal);}
+
+  .tier{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;}
+  .tier-mug{background:rgba(42,184,166,0.15);color:var(--teal);border:1px solid rgba(42,184,166,0.3);}
+  .tier-coffee{background:rgba(232,184,75,0.15);color:var(--amber);border:1px solid rgba(232,184,75,0.3);}
+  .tier-full{background:rgba(191,95,255,0.15);color:var(--purple);border:1px solid rgba(191,95,255,0.3);}
+  .tier-free{background:rgba(142,155,176,0.1);color:var(--sub);border:1px solid var(--border);}
+
+  .loading{color:var(--muted);font-size:13px;font-family:'DM Mono',monospace;padding:20px 0;text-align:center;}
+
+  .lookup-toolbar{display:flex;gap:12px;margin-bottom:16px;align-items:center;}
+  .search-bar{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s;}
+  .search-bar:focus{border-color:var(--teal);}
+  .search-bar::placeholder{color:var(--muted);}
+
+  .btn{padding:10px 20px;border-radius:6px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-primary{background:var(--teal);color:var(--void);}
+  .btn-primary:hover{background:#35d4c0;}
+  .btn-secondary{background:var(--raised);color:var(--text);border:1px solid var(--border);}
+  .btn-secondary:hover{border-color:var(--teal);color:var(--teal);}
+  .btn-scan{background:var(--amber);color:var(--void);}
+  .btn-scan:hover{background:#f5c84e;}
+  .btn-danger{background:rgba(224,82,82,0.15);color:var(--red);border:1px solid rgba(224,82,82,0.3);}
+  .btn-sm{padding:6px 14px;font-size:12px;}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+  .member-profile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px;display:none;margin-bottom:16px;}
+  .member-profile.visible{display:block;animation:fadeIn 0.2s ease;}
+  .profile-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;}
+  .profile-name{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;}
+  .profile-email{font-size:13px;color:var(--sub);font-family:'DM Mono',monospace;margin-top:2px;}
+  .profile-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .stat-box{background:var(--raised);border-radius:6px;padding:12px;}
+  .stat-label{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+  .stat-val{font-family:'Bebas Neue',sans-serif;font-size:24px;line-height:1;}
+  .profile-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+
+  .pts-select{background:var(--raised);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
+  .pts-select:focus{border-color:var(--teal);}
+
+  .tap-list-title{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
+  .tap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .beer-tile{background:var(--raised);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative;transition:all 0.15s;}
+  .beer-tile.new-release{border-color:rgba(232,184,75,0.4);}
+  .beer-tile.already-poured{opacity:0.5;}
+  .beer-name{font-weight:600;font-size:14px;margin-bottom:2px;}
+  .beer-style{font-size:11px;color:var(--sub);font-family:'DM Mono',monospace;margin-bottom:8px;}
+  .beer-abv{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;}
+  .pour-badge{display:inline-block;font-size:10px;font-family:'DM Mono',monospace;padding:2px 8px;border-radius:10px;margin-bottom:6px;}
+  .pour-badge.new{background:rgba(232,184,75,0.15);color:var(--amber);border:1px solid rgba(232,184,75,0.3);}
+  .pour-badge.done{background:rgba(142,155,176,0.1);color:var(--muted);border:1px solid var(--border);}
+  .btn-pour{width:100%;margin-top:8px;padding:8px;border-radius:6px;border:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;background:var(--amber);color:var(--void);transition:all 0.15s;}
+  .btn-pour:hover{background:#f5c84e;}
+  .btn-pour:disabled{background:var(--border);color:var(--muted);cursor:default;}
+
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;}
+  thead{background:var(--raised);}
+  th{padding:10px 16px;text-align:left;font-size:11px;font-family:'DM Mono',monospace;color:var(--sub);letter-spacing:1px;text-transform:uppercase;font-weight:400;}
+  td{padding:12px 16px;font-size:13px;border-top:1px solid var(--border);}
+  tr:hover td{background:var(--raised);}
+
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .form-group{display:flex;flex-direction:column;gap:6px;}
+  .form-label{font-size:11px;font-family:'DM Mono',monospace;color:var(--sub);letter-spacing:1px;text-transform:uppercase;}
+  .form-input,.form-select{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s;}
+  .form-input:focus,.form-select:focus{border-color:var(--teal);}
+  .form-input:disabled{opacity:0.4;}
+  .form-select option,.form-select optgroup{background:var(--surface);}
+  .dropdown-results{background:var(--raised);border-radius:6px;margin-top:4px;display:none;max-height:160px;overflow-y:auto;border:1px solid var(--border);}
+  .dropdown-item{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .dropdown-item:last-child{border-bottom:none;}
+  .dropdown-item:hover{background:var(--surface);}
+  .reward-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--border);}
+  .reward-name{font-weight:500;}
+  .reward-cost{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--amber);}
+  .reward-tier-sub{font-size:11px;color:var(--sub);margin-top:2px;}
+
+  .rdm-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+  .rdm-row:last-child{border-bottom:none;}
+  .rdm-name{font-weight:500;font-size:14px;}
+  .rdm-meta{font-size:12px;color:var(--sub);font-family:'DM Mono',monospace;margin-top:2px;}
+  .rdm-pts{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--amber);}
+  .tier-pill{display:inline-block;background:var(--raised);border:1px solid var(--border);border-radius:4px;font-size:10px;font-family:'DM Mono',monospace;padding:1px 6px;color:var(--muted);margin-right:6px;}
+
+  .admin-summary-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .admin-summary-row:last-child{border-bottom:none;}
+  .admin-summary-val{font-family:'DM Mono',monospace;color:var(--teal);}
+
+  .scanner-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;flex-direction:column;align-items:center;justify-content:center;}
+  .scanner-overlay.active{display:flex;}
+  .scanner-box{position:relative;width:280px;height:280px;border-radius:16px;overflow:hidden;border:2px solid var(--teal);}
+  .scanner-box video{width:100%;height:100%;object-fit:cover;}
+  .scanner-corner{position:absolute;width:24px;height:24px;border-color:var(--teal);border-style:solid;}
+  .scanner-corner.tl{top:8px;left:8px;border-width:3px 0 0 3px;}
+  .scanner-corner.tr{top:8px;right:8px;border-width:3px 3px 0 0;}
+  .scanner-corner.bl{bottom:8px;left:8px;border-width:0 0 3px 3px;}
+  .scanner-corner.br{bottom:8px;right:8px;border-width:0 3px 3px 0;}
+  .scanner-line{position:absolute;left:12px;right:12px;height:2px;background:var(--teal);opacity:0.7;animation:scanline 2s ease-in-out infinite;}
+  @keyframes scanline{0%,100%{top:12px}50%{top:calc(100% - 12px)}}
+  .scanner-label{color:var(--text);font-size:14px;margin-top:24px;font-family:'DM Mono',monospace;letter-spacing:1px;}
+  .scanner-status{color:var(--sub);font-size:12px;margin-top:8px;}
+  .scanner-result{margin-top:20px;background:var(--surface);border:1px solid var(--teal);border-radius:10px;padding:16px 24px;text-align:center;display:none;}
+  .scanner-result.visible{display:block;animation:fadeIn 0.2s ease;}
+  .scanner-result-name{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--teal);}
+  .scanner-btn-row{display:flex;gap:12px;margin-top:20px;}
+  .btn-cancel{background:var(--raised);color:var(--sub);border:1px solid var(--border);padding:12px 24px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn-confirm{background:var(--teal);color:var(--void);padding:12px 32px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;display:none;}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--teal);color:var(--void);padding:12px 20px;border-radius:8px;font-weight:600;font-size:14px;transform:translateY(80px);opacity:0;transition:all 0.3s ease;z-index:2000;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.error{background:var(--red);color:white;}
+
+  .alert{padding:10px 14px;border-radius:6px;font-size:13px;font-weight:500;margin-bottom:14px;display:none;}
+  .alert.visible{display:block;}
+  .alert-success{background:rgba(42,184,166,0.12);border:1px solid rgba(42,184,166,0.3);color:var(--teal);}
+  .alert-error{background:rgba(224,82,82,0.12);border:1px solid rgba(224,82,82,0.3);color:var(--red);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <img class="header-logo" src="https://opsplpqvordihoktuqzp.supabase.co/storage/v1/object/public/assets/lvbc-logo.png" alt="LVBC" onerror="this.style.display='none'">
+    <div class="logo">LVBC <span>STAFF PANEL</span></div>
+  </div>
+  <div class="staff-badge">● ONLINE</div>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="showScreen('dashboard',this);clearActiveMember()">Dashboard</button>
+  <button class="nav-btn" onclick="showScreen('lookup',this)">Member Check-In</button>
+  <button class="nav-btn" onclick="showScreen('rewards',this);syncRewardsMember()">Rewards</button>
+  <button class="nav-btn" onclick="showScreen('admin',this)">Admin</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div class="screen active" id="screen-dashboard">
+    <div class="grid-4">
+      <div class="card"><div class="card-title">Members Today</div><div class="card-value teal" id="stat-today">—</div><div class="card-sub">check-ins</div></div>
+      <div class="card"><div class="card-title">Total Members</div><div class="card-value" id="stat-total">—</div><div class="card-sub">active accounts</div></div>
+      <div class="card"><div class="card-title">Points Awarded</div><div class="card-value amber" id="stat-pts">—</div><div class="card-sub">today</div></div>
+      <div class="card"><div class="card-title">Free Pours</div><div class="card-value" id="stat-pours">—</div><div class="card-sub">given today</div></div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="section-label">Recent Check-Ins</div>
+        <div class="card" id="recent-checkins"><div class="loading">Loading...</div></div>
+      </div>
+      <div>
+        <div class="section-label">Recent Redemptions</div>
+        <div class="card" id="dash-redemptions"><div class="loading">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMBER CHECK-IN -->
+  <div class="screen" id="screen-lookup">
+    <div class="lookup-toolbar">
+      <input class="search-bar" type="text" placeholder="Search by name or email..." oninput="searchMembers(this.value)" id="member-search-input">
+      <button class="btn btn-scan" onclick="openScanner()">📷 Scan</button>
+      <button class="btn btn-secondary" onclick="clearLookup()">Clear</button>
+    </div>
+
+    <div class="member-profile" id="member-profile">
+      <div class="profile-header">
+        <div>
+          <div class="profile-name" id="profile-name">—</div>
+          <div class="profile-email" id="profile-email">—</div>
+          <div style="margin-top:6px"><span class="tier" id="profile-tier">—</span></div>
+        </div>
+        <div style="text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">
+          <div>TOKEN</div>
+          <div style="color:var(--sub);margin-top:4px;font-size:11px" id="profile-token">—</div>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="stat-box"><div class="stat-label">Balance</div><div class="stat-val teal" id="profile-balance">—</div></div>
+        <div class="stat-box"><div class="stat-label">Lifetime</div><div class="stat-val" id="profile-lifetime">—</div></div>
+        <div class="stat-box"><div class="stat-label">Member Since</div><div class="stat-val" style="font-size:16px;padding-top:4px" id="profile-since">—</div></div>
+        <div class="stat-box"><div class="stat-label">Free Pours</div><div class="stat-val" id="profile-pour-count">—</div></div>
+      </div>
+      <div class="profile-actions" id="profile-actions">
+        <select class="pts-select" id="checkin-points">
+          <option value="15">15 pts — Standard</option>
+          <option value="25">25 pts — Wed / Thu</option>
+          <option value="50">50 pts — First visit</option>
+        </select>
+        <button class="btn btn-primary" id="checkin-btn" onclick="logCheckin()">✓ Log Check-In</button>
+        <button class="btn btn-danger btn-sm" onclick="clearLookup()">✕ Clear Member</button>
+      </div>
+      <div id="checkin-done-msg" style="display:none;font-size:13px;color:var(--teal);font-family:'DM Mono',monospace;margin-top:8px">✓ Checked in this visit</div>
+      <div style="margin-top:24px">
+        <div class="tap-list-title">ON TAP — FREE POUR STATUS</div>
+        <div class="tap-grid" id="tap-list"><div class="loading">Loading tap list...</div></div>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="member-results">
+      <div class="loading">Search or scan a member to begin</div>
+    </div>
+  </div>
+
+  <!-- REWARDS -->
+  <div class="screen" id="screen-rewards">
+    <div id="rw-active-member-bar" style="display:none;background:var(--raised);border:1px solid var(--teal);border-radius:8px;padding:12px 16px;margin-bottom:16px;align-items:center;justify-content:space-between">
+      <div style="font-size:13px">Active member: <span id="rw-active-name" style="font-weight:600;color:var(--teal)">—</span> <span id="rw-active-tier" class="tier" style="margin-left:8px">—</span></div>
+      <button class="btn btn-danger btn-sm" onclick="clearActiveMember()">✕ Clear</button>
+    </div>
+    <div class="grid-2">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title" style="margin-bottom:16px">Process a Redemption</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Member</label>
+            <input class="form-input" type="text" id="rw-member-search" placeholder="Search name or email..." oninput="rwSearchMembers(this.value)">
+            <div class="dropdown-results" id="rw-member-results"></div>
+            <input type="hidden" id="rw-member-id">
+            <div id="rw-member-balance" style="font-size:12px;color:var(--teal);font-family:'DM Mono',monospace;margin-top:6px;display:none"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reward</label>
+            <select class="form-select" id="rw-reward">
+              <optgroup label="Tier 1 — Treasure Box">
+                <option value="100" data-tier="1">Treasure box pick — 100 pts</option>
+                <option value="100" data-tier="1">Sticker pack — 100 pts</option>
+                <option value="150" data-tier="1">Snack item — 150 pts</option>
+                <option value="150" data-tier="1">Koozie — 150 pts</option>
+                <option value="150" data-tier="1">Partner discount coupon — 150 pts</option>
+                <option value="0" data-tier="1">Birthday bonus treasure box — 0 pts</option>
+              </optgroup>
+              <optgroup label="Tier 2 — Social Currency">
+                <option value="250" data-tier="2">Pick trivia category — 250 pts</option>
+                <option value="250" data-tier="2">Pick music bingo theme — 250 pts</option>
+                <option value="250" data-tier="2">Pick karaoke opener — 250 pts</option>
+                <option value="300" data-tier="2">Wall of Regulars — 300 pts</option>
+                <option value="400" data-tier="2">LVBC pint glass — 400 pts</option>
+                <option value="400" data-tier="2">Free snack up to $10 — 400 pts</option>
+                <option value="350" data-tier="2">Early RSVP access — 350 pts</option>
+                <option value="500" data-tier="2">Choose next staff pick — 500 pts</option>
+              </optgroup>
+              <optgroup label="Tier 3 — Real Merch (paid members only)">
+                <option value="750" data-tier="3">LVBC t-shirt — 750 pts</option>
+                <option value="750" data-tier="3">LVBC hat — 750 pts</option>
+                <option value="750" data-tier="3">Growler (branded) — 750 pts</option>
+                <option value="1000" data-tier="3">LVBC hoodie — 1000 pts</option>
+                <option value="800" data-tier="3">LVBC U There — $10 off — 800 pts</option>
+                <option value="1000" data-tier="3">LVBC U There — $20 off — 1000 pts</option>
+              </optgroup>
+              <optgroup label="Tier 4 — Insider Access (paid members only)">
+                <option value="1500" data-tier="4">Private tasting for 4 — 1500 pts</option>
+                <option value="1500" data-tier="4">VIP table at special event — 1500 pts</option>
+                <option value="2000" data-tier="4">Custom LVBC item — 2000 pts</option>
+                <option value="2000" data-tier="4">LVBC U There — comped ticket — 2000 pts</option>
+                <option value="2500" data-tier="4">Host private taproom event — 2500 pts</option>
+              </optgroup>
+              <optgroup label="Tier 5 — Legacy (paid members only)">
+                <option value="5000" data-tier="5">Limestone wall inscription — 5000 pts</option>
+                <option value="5000" data-tier="5">Brew day experience — 5000 pts</option>
+                <option value="5000" data-tier="5">Anniversary party invite — 5000 pts</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Processed By</label>
+            <input class="form-input" type="text" id="rw-staff" placeholder="Staff name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes (optional)</label>
+            <input class="form-input" type="text" id="rw-notes" placeholder="e.g. navy blue hat">
+          </div>
+        </div>
+        <div id="rw-alert" class="alert"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="submitRedemption()">Process Redemption</button>
+          <button class="btn btn-secondary" onclick="resetRedemption()">Clear</button>
+        </div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-top:0">Reward Tiers Reference</div>
+        <div class="table-wrap" style="margin-bottom:20px">
+          <div class="reward-row"><div><div class="reward-name">Tier 1 — Treasure Box</div><div class="reward-tier-sub">Available to all members</div></div><div class="reward-cost">100–150</div></div>
+          <div class="reward-row"><div><div class="reward-name">Tier 2 — Social Currency</div><div class="reward-tier-sub">Available to all members</div></div><div class="reward-cost">250–500</div></div>
+          <div class="reward-row"><div><div class="reward-name">Tier 3 — Real Merch</div><div class="reward-tier-sub">Paying members only</div></div><div class="reward-cost">750–1000</div></div>
+          <div class="reward-row"><div><div class="reward-name">Tier 4 — Insider Access</div><div class="reward-tier-sub">Paying members only</div></div><div class="reward-cost">1500–2500</div></div>
+          <div class="reward-row"><div><div class="reward-name">Tier 5 — Legacy</div><div class="reward-tier-sub">Paying members only</div></div><div class="reward-cost">5000+</div></div>
+        </div>
+        <div class="section-label" style="margin-top:0">Recent Redemptions</div>
+        <div class="card" id="rewards-recent-log"><div class="loading">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="screen" id="screen-admin">
+    <div class="lookup-toolbar">
+      <input class="search-bar" type="text" placeholder="Search member to edit..." oninput="adminSearch(this.value)" id="admin-search-input">
+      <button class="btn btn-secondary" onclick="clearAdminEdit()">Clear</button>
+    </div>
+    <div class="table-wrap" id="admin-results" style="margin-bottom:20px">
+      <div class="loading">Search for a member to begin</div>
+    </div>
+    <div id="admin-edit-panel" style="display:none">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px">Edit Member Record</div>
+          <div id="admin-alert" class="alert"></div>
+          <input type="hidden" id="admin-id">
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Name</label><input class="form-input" type="text" id="admin-name"></div>
+            <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="admin-email"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="text" id="admin-phone"></div>
+            <div class="form-group"><label class="form-label">Birthday</label><input class="form-input" type="date" id="admin-birthday"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Membership Tier</label>
+              <select class="form-select" id="admin-tier">
+                <option value="Free">Free</option>
+                <option value="Mug Club">Mug Club</option>
+                <option value="Coffee Club">Coffee Club</option>
+                <option value="Full Pour">Full Pour</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="admin-active">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Points Balance</label><input class="form-input" type="number" id="admin-balance"></div>
+            <div class="form-group"><label class="form-label">Lifetime Points</label><input class="form-input" type="number" id="admin-lifetime" disabled></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <button class="btn btn-primary" onclick="saveAdminEdit()">Save Changes</button>
+            <button class="btn btn-secondary" onclick="resetAdminPin()">Reset PIN</button>
+          </div>
+        </div>
+        <div>
+          <div class="section-label" style="margin-top:0">Member Summary</div>
+          <div class="card" style="margin-bottom:20px"><div id="admin-summary"><div class="loading">—</div></div></div>
+          <div class="section-label" style="margin-top:0">Redemption History</div>
+          <div class="card" id="admin-rdm-history"><div class="loading">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- SCANNER OVERLAY -->
+<div class="scanner-overlay" id="scanner-overlay">
+  <div class="scanner-box">
+    <video id="scanner-video" autoplay playsinline muted></video>
+    <canvas id="scanner-canvas" style="display:none"></canvas>
+    <div class="scanner-corner tl"></div><div class="scanner-corner tr"></div>
+    <div class="scanner-corner bl"></div><div class="scanner-corner br"></div>
+    <div class="scanner-line"></div>
+  </div>
+  <div class="scanner-label">POINT AT MEMBER QR CODE</div>
+  <div class="scanner-status" id="scanner-status">Initializing camera...</div>
+  <div class="scanner-result" id="scanner-result">
+    <div class="scanner-result-name" id="scanner-found-name">—</div>
+    <div style="font-size:12px;color:var(--sub);margin-top:4px" id="scanner-found-tier">—</div>
+    <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--teal);margin-top:4px" id="scanner-found-pts">—</div>
+  </div>
+  <div class="scanner-btn-row">
+    <button class="btn-cancel" onclick="closeScanner()">Cancel</button>
+    <button class="btn-confirm" id="scanner-confirm-btn" onclick="confirmScan()">Load Member</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var SUPABASE_URL='https://opsplpqvordihoktuqzp.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wc3BscHF2b3JkaWhva3R1cXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTI0MjMsImV4cCI6MjA5MjM2ODQyM30.SIYWZXqM3o-6q1EdEBn-IpdG90JrLBZbbiNrjj6AG7Y';
+var H={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+
+async function sb(path,opts){
+  var res=await fetch(SUPABASE_URL+'/rest/v1/'+path,Object.assign({headers:H},opts||{}));
+  var t=await res.text();return t?JSON.parse(t):[];
+}
+
+function showScreen(name,btn){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('screen-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='dashboard')loadDashboard();
+  if(name==='rewards')loadRewardsLog();
+}
+
+function showToast(msg,err){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show'+(err?' error':'');
+  setTimeout(function(){t.className='toast';},3000);
+}
+
+function showAlert(id,type,msg){
+  var el=document.getElementById(id);
+  el.textContent=msg;el.className='alert visible '+type;
+  setTimeout(function(){el.classList.remove('visible');},4000);
+}
+
+function tierClass(tier){
+  if(tier==='Mug Club')return'tier-mug';
+  if(tier==='Coffee Club')return'tier-coffee';
+  if(tier==='Full Pour')return'tier-full';
+  return'tier-free';
+}
+
+function fmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function fmtDate(ts){return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}
+
+// ─── DASHBOARD ────────────────────────────────────────
+async function loadDashboard(){
+  try{
+    var today=new Date().toISOString().split('T')[0];
+    var members=await sb('members?is_active=eq.true&select=id');
+    var checkins=await sb('check_ins?checked_in_at=gte.'+today+'T00:00:00&select=*,members(name,tier)');
+    var pours=await sb('free_pours?poured_at=gte.'+today+'T00:00:00&select=id');
+    document.getElementById('stat-total').textContent=members.length;
+    document.getElementById('stat-today').textContent=checkins.length;
+    document.getElementById('stat-pts').textContent=checkins.reduce(function(a,c){return a+(c.points_awarded||0);},0);
+    document.getElementById('stat-pours').textContent=pours.length;
+
+    var container=document.getElementById('recent-checkins');
+    if(!checkins.length){container.innerHTML='<div class="loading">No check-ins today yet</div>';}
+    else{
+      container.innerHTML=checkins.slice(0,10).map(function(c){
+        return'<div class="checkin-row"><div>'+
+          '<div class="checkin-name">'+(c.members&&c.members.name||'Unknown')+'</div>'+
+          '<div class="checkin-time">'+fmtTime(c.checked_in_at)+' · <span class="tier '+tierClass(c.members&&c.members.tier)+'">'+(c.members&&c.members.tier||'—')+'</span></div>'+
+          (c.free_pour_beer?'<div class="checkin-pour">🍺 Free pour — '+c.free_pour_beer+'</div>':'')+
+          '</div><div class="checkin-pts">+'+c.points_awarded+'</div></div>';
+      }).join('');
+    }
+
+    var rdms=await sb('redemptions?order=redeemed_at.desc&limit=6&select=*,members(name)');
+    var rdmContainer=document.getElementById('dash-redemptions');
+    if(!rdms.length){rdmContainer.innerHTML='<div class="loading">No redemptions yet</div>';}
+    else{
+      rdmContainer.innerHTML=rdms.map(function(r){
+        return'<div class="rdm-row"><div>'+
+          '<div class="rdm-name">'+(r.members&&r.members.name||'Unknown')+'</div>'+
+          '<div class="rdm-meta"><span class="tier-pill">T'+r.tier+'</span>'+r.reward_name+'</div>'+
+          '</div><div class="rdm-pts">-'+r.points_spent+'</div></div>';
+      }).join('');
+    }
+  }catch(e){console.error(e);}
+}
+
+// ─── MEMBER LOOKUP ────────────────────────────────────
+var currentMember=null,allBeers=[];
+
+async function loadBeers(){
+  if(!allBeers.length){allBeers=await sb('beers?is_on_tap=eq.true&retired=eq.false&select=*&order=is_new_release.desc,name.asc');}
+  return allBeers;
+}
+
+var searchTimeout;
+async function searchMembers(val){
+  document.getElementById('member-profile').classList.remove('visible');
+  document.getElementById('member-results').style.display='block';
+  currentMember=null;
+  if(!val||val.length<2){document.getElementById('member-results').innerHTML='<div class="loading">Search or scan a member to begin</div>';return;}
+  clearTimeout(searchTimeout);
+  searchTimeout=setTimeout(async function(){
+    try{
+      var results=await sb('members?or=(name.ilike.*'+val+'*,email.ilike.*'+val+'*)&select=*');
+      var wrap=document.getElementById('member-results');
+      if(!results.length){wrap.innerHTML='<div class="loading">No members found</div>';return;}
+      if(results.length===1){loadMemberProfile(results[0]);return;}
+      wrap.innerHTML='<table><thead><tr><th>Name</th><th>Email</th><th>Tier</th><th>Balance</th></tr></thead><tbody>'+
+        results.map(function(m){return'<tr onclick="loadMemberProfile('+JSON.stringify(m).replace(/"/g,'&quot;')+')" style="cursor:pointer"><td>'+m.name+'</td><td style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--sub)">'+m.email+'</td><td><span class="tier '+tierClass(m.tier)+'">'+m.tier+'</span></td><td style="font-family:\'DM Mono\',monospace">'+m.points_balance+'</td></tr>';}).join('')+'</tbody></table>';
+    }catch(e){console.error(e);}
+  },300);
+}
+
+async function loadMemberProfile(member){
+  currentMember=member;
+  document.getElementById('member-results').style.display='none';
+  document.getElementById('member-profile').classList.add('visible');
+  document.getElementById('profile-name').textContent=member.name;
+  document.getElementById('profile-email').textContent=member.email;
+  document.getElementById('profile-balance').textContent=member.points_balance;
+  document.getElementById('profile-lifetime').textContent=member.points_earned_lifetime;
+  document.getElementById('profile-since').textContent=new Date(member.joined_at).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+  var te=document.getElementById('profile-tier');te.textContent=member.tier;te.className='tier '+tierClass(member.tier);
+  var tokens=await sb('qr_tokens?member_id=eq.'+member.id+'&select=token&limit=1');
+  document.getElementById('profile-token').textContent=tokens[0]&&tokens[0].token?tokens[0].token.substring(0,20)+'...':'—';
+  var pourCount=await sb('free_pours?member_id=eq.'+member.id+'&select=id');
+  document.getElementById('profile-pour-count').textContent=pourCount.length;
+  unlockCheckinControls();
+  await renderTapList(member.id);
+}
+
+async function renderTapList(memberId){
+  var tapList=document.getElementById('tap-list');
+  tapList.innerHTML='<div class="loading" style="grid-column:1/-1">Loading...</div>';
+  try{
+    var beers=await loadBeers();
+    var memberPours=await sb('free_pours?member_id=eq.'+memberId+'&select=beer_id');
+    var pouredBeerIds=memberPours.map(function(p){return p.beer_id;});
+    tapList.innerHTML=beers.map(function(b){
+      var isNew=b.is_new_release,alreadyPoured=pouredBeerIds.indexOf(b.id)>-1;
+      var tileClass='beer-tile'+(isNew?' new-release':'')+(alreadyPoured?' already-poured':'');
+      var badge=isNew?(alreadyPoured?'<div class="pour-badge done">✓ Already poured</div>':'<div class="pour-badge new">★ Free pour available</div>'):'';
+      var pourBtn=isNew?('<button class="btn-pour" '+(alreadyPoured?'disabled':'')+' onclick="logFreePour('+b.id+',\''+b.name.replace(/'/g,"\\'")+'\')">'+( alreadyPoured?'Already Poured':'Give Free Pour')+'</button>'):'';
+      return'<div class="'+tileClass+'">'+badge+'<div class="beer-name">'+b.name+'</div><div class="beer-style">'+b.style+'</div><div class="beer-abv">'+b.abv+'% ABV</div>'+pourBtn+'</div>';
+    }).join('');
+  }catch(e){console.error(e);tapList.innerHTML='<div class="loading" style="grid-column:1/-1">Error loading tap list</div>';}
+}
+
+async function logFreePour(beerId,beerName){
+  if(!currentMember)return;
+  var now=new Date().toISOString();
+  var pts=parseInt(document.getElementById('checkin-points').value);
+  try{
+    await sb('check_ins',{method:'POST',body:JSON.stringify({member_id:currentMember.id,checked_in_at:now,new_release_poured:true,new_release_poured_at:now,points_awarded:pts,free_pour_beer:beerName})});
+    await sb('free_pours',{method:'POST',body:JSON.stringify({member_id:currentMember.id,beer_id:beerId,poured_at:now})});
+    await sb('members?id=eq.'+currentMember.id,{method:'PATCH',body:JSON.stringify({points_balance:currentMember.points_balance+pts,points_earned_lifetime:currentMember.points_earned_lifetime+pts})});
+    currentMember.points_balance+=pts;currentMember.points_earned_lifetime+=pts;
+    document.getElementById('profile-balance').textContent=currentMember.points_balance;
+    var pourCount=await sb('free_pours?member_id=eq.'+currentMember.id+'&select=id');
+    document.getElementById('profile-pour-count').textContent=pourCount.length;
+    lockCheckinControls();
+    showToast('🍺 Free pour logged — '+beerName+' · +'+pts+' pts');
+    await renderTapList(currentMember.id);
+  }catch(e){console.error(e);showToast('Error logging pour',true);}
+}
+
+async function logCheckin(){
+  if(!currentMember)return;
+  var pts=parseInt(document.getElementById('checkin-points').value);
+  var now=new Date().toISOString();
+  try{
+    await sb('check_ins',{method:'POST',body:JSON.stringify({member_id:currentMember.id,checked_in_at:now,new_release_poured:false,points_awarded:pts})});
+    await sb('members?id=eq.'+currentMember.id,{method:'PATCH',body:JSON.stringify({points_balance:currentMember.points_balance+pts,points_earned_lifetime:currentMember.points_earned_lifetime+pts})});
+    currentMember.points_balance+=pts;
+    document.getElementById('profile-balance').textContent=currentMember.points_balance;
+    lockCheckinControls();
+    showToast('✓ Check-in logged · +'+pts+' pts');
+  }catch(e){console.error(e);showToast('Error logging check-in',true);}
+}
+
+function lockCheckinControls(){
+  document.getElementById('checkin-points').disabled=true;document.getElementById('checkin-points').style.opacity='0.4';
+  document.getElementById('checkin-btn').disabled=true;document.getElementById('checkin-btn').style.opacity='0.4';
+  document.getElementById('checkin-done-msg').style.display='block';
+}
+function unlockCheckinControls(){
+  document.getElementById('checkin-points').disabled=false;document.getElementById('checkin-points').style.opacity='1';
+  document.getElementById('checkin-btn').disabled=false;document.getElementById('checkin-btn').style.opacity='1';
+  document.getElementById('checkin-done-msg').style.display='none';
+}
+
+function clearLookup(){
+  currentMember=null;
+  document.getElementById('member-search-input').value='';
+  document.getElementById('member-profile').classList.remove('visible');
+  document.getElementById('member-results').style.display='block';
+  document.getElementById('member-results').innerHTML='<div class="loading">Search or scan a member to begin</div>';
+  unlockCheckinControls();
+  hideRewardsMemberBar();
+}
+function clearActiveMember(){clearLookup();resetRedemption();}
+
+// ─── REWARDS ─────────────────────────────────────────
+var rwSelectedMember=null;
+
+function syncRewardsMember(){
+  if(!currentMember)return;
+  var bar=document.getElementById('rw-active-member-bar');bar.style.display='flex';
+  document.getElementById('rw-active-name').textContent=currentMember.name;
+  var te=document.getElementById('rw-active-tier');te.textContent=currentMember.tier;te.className='tier '+tierClass(currentMember.tier);
+  document.getElementById('rw-member-search').value=currentMember.name;
+  document.getElementById('rw-member-id').value=currentMember.id;
+  var balDiv=document.getElementById('rw-member-balance');
+  balDiv.style.display='block';balDiv.textContent='Current balance: '+currentMember.points_balance+' pts';
+  rwSelectedMember={id:currentMember.id,name:currentMember.name,balance:currentMember.points_balance,tier:currentMember.tier};
+}
+function hideRewardsMemberBar(){document.getElementById('rw-active-member-bar').style.display='none';}
+
+async function rwSearchMembers(val){
+  var resultsDiv=document.getElementById('rw-member-results');
+  if(!val||val.length<2){resultsDiv.style.display='none';return;}
+  var results=await sb('members?or=(name.ilike.*'+val+'*,email.ilike.*'+val+'*)&select=id,name,tier,points_balance');
+  if(!results.length){resultsDiv.style.display='none';return;}
+  resultsDiv.style.display='block';
+  resultsDiv.innerHTML=results.map(function(m){
+    return'<div class="dropdown-item" onclick="selectRwMember('+m.id+',\''+m.name.replace(/'/g,"\\'")+'\','+m.points_balance+',\''+m.tier+'\')"><span>'+m.name+' <span class="tier '+tierClass(m.tier)+'" style="margin-left:8px">'+m.tier+'</span></span><span style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--teal)">'+m.points_balance+' pts</span></div>';
+  }).join('');
+}
+
+function selectRwMember(id,name,balance,tier){
+  rwSelectedMember={id:id,name:name,balance:balance,tier:tier};
+  document.getElementById('rw-member-search').value=name;
+  document.getElementById('rw-member-id').value=id;
+  document.getElementById('rw-member-results').style.display='none';
+  var balDiv=document.getElementById('rw-member-balance');
+  balDiv.style.display='block';balDiv.textContent='Current balance: '+balance+' pts';
+}
+
+async function submitRedemption(){
+  if(!rwSelectedMember){showToast('Select a member first',true);return;}
+  var sel=document.getElementById('rw-reward');
+  var cost=parseInt(sel.value);
+  var rewardText=sel.options[sel.selectedIndex].text;
+  var tierNum=parseInt(sel.options[sel.selectedIndex].dataset.tier||'1');
+  var staff=document.getElementById('rw-staff').value;
+  var notes=document.getElementById('rw-notes').value;
+  if(cost>0&&rwSelectedMember.balance<cost){showAlert('rw-alert','alert-error','Insufficient points · '+rwSelectedMember.balance+' / '+cost+' needed');return;}
+  var isPaying=['Mug Club','Coffee Club','Full Pour'].includes(rwSelectedMember.tier);
+  if(tierNum>=3&&!isPaying){showAlert('rw-alert','alert-error','Tier 3+ rewards require a paid membership');return;}
+  try{
+    if(cost>0){await sb('members?id=eq.'+rwSelectedMember.id,{method:'PATCH',body:JSON.stringify({points_balance:rwSelectedMember.balance-cost})});}
+    await sb('redemptions',{method:'POST',body:JSON.stringify({member_id:rwSelectedMember.id,tier:tierNum,reward_name:rewardText.split(' — ')[0],points_spent:cost,processed_by:staff||null,notes:notes||null})});
+    rwSelectedMember.balance-=cost;
+    var balDiv=document.getElementById('rw-member-balance');balDiv.textContent='Current balance: '+rwSelectedMember.balance+' pts';
+    showToast('✓ Redeemed · '+rewardText.split(' — ')[0]);
+    loadRewardsLog();
+  }catch(e){console.error(e);showToast('Error processing redemption',true);}
+}
+
+function resetRedemption(){
+  rwSelectedMember=null;
+  document.getElementById('rw-member-search').value='';document.getElementById('rw-member-id').value='';
+  document.getElementById('rw-member-results').style.display='none';document.getElementById('rw-member-balance').style.display='none';
+}
+
+async function loadRewardsLog(){
+  var el=document.getElementById('rewards-recent-log');
+  try{
+    var rdms=await sb('redemptions?order=redeemed_at.desc&limit=10&select=*,members(name)');
+    if(!rdms.length){el.innerHTML='<div class="loading">No redemptions yet</div>';return;}
+    el.innerHTML=rdms.map(function(r){
+      return'<div class="rdm-row"><div>'+
+        '<div class="rdm-name">'+(r.members&&r.members.name||'Unknown')+'</div>'+
+        '<div class="rdm-meta"><span class="tier-pill">T'+r.tier+'</span>'+r.reward_name+(r.notes?' · '+r.notes:'')+'</div>'+
+        '<div class="rdm-meta">'+fmtDate(r.redeemed_at)+(r.processed_by?' · '+r.processed_by:'')+'</div>'+
+        '</div><div class="rdm-pts">-'+r.points_spent+'</div></div>';
+    }).join('');
+  }catch(e){console.error(e);}
+}
+
+// ─── SCANNER ─────────────────────────────────────────
+var zxingReader=null,scannedMember=null;
+
+async function openScanner(){
+  document.getElementById('scanner-overlay').classList.add('active');
+  document.getElementById('scanner-result').classList.remove('visible');
+  document.getElementById('scanner-confirm-btn').style.display='none';
+  document.getElementById('scanner-status').textContent='Initializing camera...';
+  scannedMember=null;
+  try{
+    zxingReader=new ZXing.BrowserQRCodeReader();
+    document.getElementById('scanner-status').textContent='Ready — point at QR code';
+    zxingReader.decodeFromVideoDevice(null,'scanner-video',function(result,err){
+      if(result){zxingReader.reset();lookupToken(result.getText());}
+    });
+  }catch(e){document.getElementById('scanner-status').textContent='Camera access denied';console.error(e);}
+}
+
+async function lookupToken(token){
+  try{
+    var tokens=await sb('qr_tokens?token=eq.'+token+'&select=member_id');
+    if(!tokens.length){
+      document.getElementById('scanner-status').textContent='Token not found — try again';
+      zxingReader=new ZXing.BrowserQRCodeReader();
+      zxingReader.decodeFromVideoDevice(null,'scanner-video',function(result,err){if(result){zxingReader.reset();lookupToken(result.getText());}});
+      return;
+    }
+    var members=await sb('members?id=eq.'+tokens[0].member_id+'&select=*');
+    if(!members.length){document.getElementById('scanner-status').textContent='Member not found';return;}
+    scannedMember=members[0];
+    document.getElementById('scanner-found-name').textContent=scannedMember.name;
+    document.getElementById('scanner-found-tier').textContent=scannedMember.tier;
+    document.getElementById('scanner-found-pts').textContent=scannedMember.points_balance+' pts';
+    document.getElementById('scanner-result').classList.add('visible');
+    document.getElementById('scanner-confirm-btn').style.display='block';
+    document.getElementById('scanner-status').textContent='Member found';
+  }catch(e){console.error(e);}
+}
+
+function confirmScan(){if(!scannedMember)return;closeScanner();loadMemberProfile(scannedMember);}
+function closeScanner(){if(zxingReader){try{zxingReader.reset();}catch(e){}zxingReader=null;}document.getElementById('scanner-overlay').classList.remove('active');}
+
+// ─── ADMIN ────────────────────────────────────────────
+var adminSearchTimeout;
+
+async function adminSearch(val){
+  var wrap=document.getElementById('admin-results');
+  if(!val||val.length<2){wrap.innerHTML='<div class="loading">Search for a member to begin</div>';return;}
+  clearTimeout(adminSearchTimeout);
+  adminSearchTimeout=setTimeout(async function(){
+    var results=await sb('members?or=(name.ilike.*'+val+'*,email.ilike.*'+val+'*)&select=*');
+    if(!results.length){wrap.innerHTML='<div class="loading">No members found</div>';return;}
+    wrap.innerHTML='<table><thead><tr><th>Name</th><th>Email</th><th>Tier</th><th>Balance</th></tr></thead><tbody>'+
+      results.map(function(m){return'<tr onclick="loadAdminEdit('+JSON.stringify(m).replace(/"/g,'&quot;')+')" style="cursor:pointer"><td>'+m.name+'</td><td style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--sub)">'+m.email+'</td><td><span class="tier '+tierClass(m.tier)+'">'+m.tier+'</span></td><td style="font-family:\'DM Mono\',monospace">'+m.points_balance+'</td></tr>';}).join('')+'</tbody></table>';
+  },300);
+}
+
+async function loadAdminEdit(m){
+  document.getElementById('admin-results').innerHTML='<div class="loading">Search for a member to begin</div>';
+  document.getElementById('admin-search-input').value='';
+  document.getElementById('admin-edit-panel').style.display='block';
+  document.getElementById('admin-id').value=m.id;
+  document.getElementById('admin-name').value=m.name||'';
+  document.getElementById('admin-email').value=m.email||'';
+  document.getElementById('admin-phone').value=m.phone||'';
+  document.getElementById('admin-birthday').value=m.birthday||'';
+  document.getElementById('admin-tier').value=m.tier||'Free';
+  document.getElementById('admin-active').value=m.is_active?'true':'false';
+  document.getElementById('admin-balance').value=m.points_balance||0;
+  document.getElementById('admin-lifetime').value=m.points_earned_lifetime||0;
+
+  var checkins=await sb('check_ins?member_id=eq.'+m.id+'&select=id');
+  var pours=await sb('free_pours?member_id=eq.'+m.id+'&select=id');
+  document.getElementById('admin-summary').innerHTML=
+    '<div class="admin-summary-row"><span>Member ID</span><span class="admin-summary-val" style="color:var(--sub)">'+m.id+'</span></div>'+
+    '<div class="admin-summary-row"><span>Joined</span><span class="admin-summary-val">'+new Date(m.joined_at).toLocaleDateString()+'</span></div>'+
+    '<div class="admin-summary-row"><span>Total Check-ins</span><span class="admin-summary-val">'+checkins.length+'</span></div>'+
+    '<div class="admin-summary-row"><span>Free Pours Received</span><span class="admin-summary-val" style="color:var(--amber)">'+pours.length+'</span></div>'+
+    '<div class="admin-summary-row"><span>Points Balance</span><span class="admin-summary-val">'+m.points_balance+'</span></div>'+
+    '<div class="admin-summary-row"><span>Lifetime Points</span><span class="admin-summary-val" style="color:var(--sub)">'+m.points_earned_lifetime+'</span></div>';
+
+  var rdms=await sb('redemptions?member_id=eq.'+m.id+'&order=redeemed_at.desc&select=*');
+  var rdmEl=document.getElementById('admin-rdm-history');
+  if(!rdms.length){rdmEl.innerHTML='<div class="loading">No redemptions yet</div>';return;}
+  rdmEl.innerHTML=rdms.map(function(r){
+    return'<div class="rdm-row"><div>'+
+      '<div class="rdm-name" style="font-size:13px">'+r.reward_name+'</div>'+
+      '<div class="rdm-meta"><span class="tier-pill">T'+r.tier+'</span>'+fmtDate(r.redeemed_at)+(r.notes?' · '+r.notes:'')+'</div>'+
+      '</div><div class="rdm-pts" style="font-size:18px">-'+r.points_spent+'</div></div>';
+  }).join('');
+}
+
+async function saveAdminEdit(){
+  var id=document.getElementById('admin-id').value;
+  var updates={name:document.getElementById('admin-name').value,email:document.getElementById('admin-email').value,phone:document.getElementById('admin-phone').value,birthday:document.getElementById('admin-birthday').value||null,tier:document.getElementById('admin-tier').value,is_active:document.getElementById('admin-active').value==='true',points_balance:parseInt(document.getElementById('admin-balance').value)||0};
+  try{await sb('members?id=eq.'+id,{method:'PATCH',body:JSON.stringify(updates)});showAlert('admin-alert','alert-success','✓ Member record updated');}
+  catch(e){showAlert('admin-alert','alert-error','Error saving changes');}
+}
+
+async function resetAdminPin(){
+  var id=document.getElementById('admin-id').value;
+  try{await sb('members?id=eq.'+id,{method:'PATCH',body:JSON.stringify({pin:null})});showAlert('admin-alert','alert-success','✓ PIN cleared — member will set a new one on next login');}
+  catch(e){showAlert('admin-alert','alert-error','Error resetting PIN');}
+}
+
+function clearAdminEdit(){
+  document.getElementById('admin-search-input').value='';
+  document.getElementById('admin-edit-panel').style.display='none';
+  document.getElementById('admin-results').innerHTML='<div class="loading">Search for a member to begin</div>';
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
